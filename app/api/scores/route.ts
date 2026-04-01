@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertScore, getLeaderboard } from "@/lib/db";
+import { insertScore, getLeaderboard, isUsernameTaken } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,8 +18,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, score } = await req.json();
+    const { userId, username, score } = await req.json();
 
+    if (!userId || typeof userId !== "string") {
+      return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
+    }
     if (!username || typeof username !== "string" || username.length > 30) {
       return NextResponse.json({ error: "Invalid username" }, { status: 400 });
     }
@@ -27,7 +30,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid score" }, { status: 400 });
     }
 
-    await insertScore(username.trim(), score);
+    const taken = await isUsernameTaken(username.trim(), userId);
+    if (taken) {
+      return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
+    }
+
+    await insertScore(userId, username.trim(), score);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Score submission failed:", e);

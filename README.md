@@ -23,7 +23,7 @@ Then open `http://localhost:3000`.
 
 ### Environment variables
 
-The leaderboard uses [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres). Set `POSTGRES_URL` (or the variables provided by Vercel) to enable score persistence. Without a database the app still runs — the leaderboard will just be empty.
+The leaderboard uses [Neon Postgres](https://neon.tech). Set `DATABASE_URL` to your Neon connection string to enable score persistence. Without a database the app still runs — the leaderboard will just be empty.
 
 ## Tech stack
 
@@ -31,7 +31,7 @@ The leaderboard uses [Vercel Postgres](https://vercel.com/docs/storage/vercel-po
 - **React 19**
 - **@chenglou/pretext** — multiline text layout powering the word positions
 - **Canvas** — dog animation and rendering
-- **@vercel/postgres** — leaderboard storage
+- **@neondatabase/serverless** — leaderboard storage
 
 ## Credits
 
