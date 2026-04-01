@@ -28,7 +28,7 @@ async function pgEnsureTable() {
   await query`
     CREATE TABLE IF NOT EXISTS scores (
       id SERIAL PRIMARY KEY,
-      user_id TEXT NOT NULL,
+      user_id TEXT NOT NULL UNIQUE,
       username TEXT NOT NULL,
       score INT NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -39,7 +39,14 @@ async function pgEnsureTable() {
 async function pgInsertScore(userId: string, username: string, score: number) {
   const query = sql();
   await pgEnsureTable();
-  await query`INSERT INTO scores (user_id, username, score) VALUES (${userId}, ${username}, ${score})`;
+  await query`
+    INSERT INTO scores (user_id, username, score)
+    VALUES (${userId}, ${username}, ${score})
+    ON CONFLICT (user_id) DO UPDATE
+      SET score = GREATEST(scores.score, EXCLUDED.score),
+          username = EXCLUDED.username,
+          created_at = NOW()
+  `;
 }
 
 async function pgGetLeaderboard(limit: number): Promise<Score[]> {
@@ -71,13 +78,22 @@ export async function insertScore(userId: string, username: string, score: numbe
   if (useNeon()) {
     return pgInsertScore(userId, username, score);
   }
-  memoryScores.push({
-    id: memoryNextId++,
-    user_id: userId,
-    username,
-    score,
-    created_at: new Date().toISOString(),
-  });
+  const existing = memoryScores.find((s) => s.user_id === userId);
+  if (existing) {
+    if (score > existing.score) {
+      existing.score = score;
+      existing.username = username;
+      existing.created_at = new Date().toISOString();
+    }
+  } else {
+    memoryScores.push({
+      id: memoryNextId++,
+      user_id: userId,
+      username,
+      score,
+      created_at: new Date().toISOString(),
+    });
+  }
 }
 
 export async function getLeaderboard(limit = 20): Promise<Score[]> {

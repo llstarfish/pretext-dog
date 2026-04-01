@@ -18,20 +18,29 @@ function getOrCreateUserId(): string {
 
 export default function StartPage() {
   const [introDone, setIntroDone] = useState(false);
+  const [returningUser, setReturningUser] = useState(false);
   const [username, setUsername] = useState("");
   const [nameError, setNameError] = useState("");
   const [checking, setChecking] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
 
-  // Restore username (runs once on mount)
+  // Detect returning user on mount
   useEffect(() => {
-    const saved = localStorage.getItem("pretext-dog-username");
-    if (saved) setUsername(saved);
+    const savedId = localStorage.getItem("pretext-dog-user-id");
+    const savedName = localStorage.getItem("pretext-dog-username");
+    if (savedId && savedName) {
+      setUsername(savedName);
+      setReturningUser(true);
+      setIntroDone(true);
+    } else if (savedName) {
+      setUsername(savedName);
+    }
   }, []);
 
   // ── Single canvas animation: intro → settle → idle ───────────────
   useEffect(() => {
+    if (returningUser) return; // skip intro for returning users
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
@@ -248,7 +257,7 @@ export default function StartPage() {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [returningUser]);
 
   // ── Handlers ──────────────────────────────────────────────────────
   async function play() {
@@ -278,6 +287,40 @@ export default function StartPage() {
   }
 
   // ── Render ────────────────────────────────────────────────────────
+  if (returningUser) {
+    return (
+      <div className="start-overlay" style={{ background: "url(/farm-bg.png) center/cover" }}>
+        <div className="start-card start-card-enter">
+          <h1>Welcome back, {username}!</h1>
+          <p>Ready to eat some more words?</p>
+          <button onClick={play} autoFocus>
+            Play
+          </button>
+          <button
+            className="modal-btn-secondary"
+            style={{ marginTop: 8 }}
+            onClick={() => setReturningUser(false)}
+          >
+            Change name
+          </button>
+        </div>
+
+        <div className="credit-bar credit-bar-enter">
+          <span className="credit-label">Article credit:</span>
+          <a
+            className="credit-link"
+            href="https://giansegato.com/essays/agency-is-eating-the-world"
+            target="_blank"
+            rel="noreferrer"
+          >
+            &ldquo;Agency is Eating the World&rdquo;
+          </a>
+          <span className="credit-author">by Gianluca Segato</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <canvas
