@@ -1,0 +1,152 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  image-rendering: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage — Stardew Valley farm field                                    */
+/* ------------------------------------------------------------------ */
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  cursor: none;
+  background: url("/farm-bg.png") center / cover no-repeat;
+  background-color: #c8a868;
+}
+
+#canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.text-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Words                                                               */
+/* ------------------------------------------------------------------ */
+
+.word {
+  position: absolute;
+  white-space: pre;
+  will-change: transform;
+  pointer-events: none;
+  user-select: none;
+  font-weight: 700;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.9),
+     1px -1px 0 rgba(255, 255, 255, 0.9),
+    -1px  1px 0 rgba(255, 255, 255, 0.9),
+     1px  1px 0 rgba(255, 255, 255, 0.9),
+     0   -2px 0 rgba(255, 255, 255, 0.5),
+     0    2px 0 rgba(255, 255, 255, 0.5),
+    -2px  0   0 rgba(255, 255, 255, 0.5),
+     2px  0   0 rgba(255, 255, 255, 0.5);
+}
+
+.word.eaten {
+  opacity: 0;
+  filter: blur(6px);
+  transition: opacity 200ms ease-out, filter 200ms ease-out;
+}
+
+/* ------------------------------------------------------------------ */
+/* HUD — Stardew Valley wooden frame                                   */
+/* ------------------------------------------------------------------ */
+
+.hud {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 8px 20px;
+  border-radius: 6px;
+  background: #f5e6c8;
+  border: 3px solid #6b4f32;
+  box-shadow:
+    0 0 0 1px #a08060,
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+  font: 600 13px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: #4a3520;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ */
+/* Credit bar                                                          */
+/* ------------------------------------------------------------------ */
+
+.credit-bar {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 6px;
+  background: rgba(60, 40, 20, 0.7);
+  border: 2px solid #5a4020;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font: 500 12px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.credit-label {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.credit-link {
+  color: #f5e6c8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(245, 230, 200, 0.4);
+}
+
+.credit-link:hover {
+  text-decoration-color: #f5e6c8;
+}
+
+.credit-author {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ------------------------------------------------------------------ */
+/* Responsive                                                          */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 700px) {
+  .hud {
+    font-size: 11px;
+    padding: 6px 14px;
+  }
+}
