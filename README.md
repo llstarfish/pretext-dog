@@ -1,26 +1,38 @@
-# pre-text-playgroud
+# Hungry Hungry Doggo
 
-Small playground repo for experimenting with [`@chenglou/pretext`](https://github.com/chenglou/pretext) in a local web app.
+A timed word-eating browser game built with [Next.js](https://nextjs.org) and [`@chenglou/pretext`](https://github.com/chenglou/pretext).
 
-## What it does
+Control a dog as it races across lines of text, chomping words before the clock runs out. Compete for a spot on the global leaderboard.
 
-- Gives you a local browser page with a text input and a live stage.
-- Uses `pretext` to lay the pasted text out line by line inside that stage.
-- Animates a little SVG dog across the lines and clips them away like it is eating the page.
+## How to play
+
+1. Enter your name on the start screen and hit **Play**.
+2. Move fast to eat words — the dog devours text as it runs.
+3. **Left-click** to bark. **Right-click** to poop (resets your size).
+4. You have **30 seconds**. Eat as many characters as you can!
+5. When time's up your score is saved and the leaderboard appears.
 
 ## Getting started
 
 ```bash
 npm install
-npm run build
-npm run serve
+npm run dev
 ```
 
-Then open `http://localhost:4173`.
+Then open `http://localhost:3000`.
 
-## Notes
+### Environment variables
 
-- The repo name intentionally matches your requested spelling: `pre-text-playgroud`.
-- This version is intentionally not an extension anymore.
-- Normal web apps cannot reliably take over arbitrary third-party pages, so this app gives you a local stage where you can paste text from any URL and still experiment with the layout and animation.
-- `pretext` is doing the multiline layout work here; the dog animation uses the resulting line widths to decide how the chewing should progress.
+The leaderboard uses [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres). Set `POSTGRES_URL` (or the variables provided by Vercel) to enable score persistence. Without a database the app still runs — the leaderboard will just be empty.
+
+## Tech stack
+
+- **Next.js 15** (App Router)
+- **React 19**
+- **@chenglou/pretext** — multiline text layout powering the word positions
+- **Canvas** — dog animation and rendering
+- **@vercel/postgres** — leaderboard storage
+
+## Credits
+
+In-game article text from [*"Agency is Eating the World"*](https://giansegato.com/essays/agency-is-eating-the-world) by Gianluca Segato.

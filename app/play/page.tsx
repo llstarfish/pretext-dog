@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import type { GameHandle } from "../../src/main";
 
 function GameInner() {
   const searchParams = useSearchParams();
@@ -10,7 +11,7 @@ function GameInner() {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const handleRef = useRef<GameHandle | null>(null);
   const started = useRef(false);
 
   type ScoreEntry = { id: number; username: string; score: number };
@@ -18,31 +19,30 @@ function GameInner() {
   const [gameOver, setGameOver] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboard, setLeaderboard] = useState<ScoreEntry[]>([]);
   const [playerEntryId, setPlayerEntryId] = useState<number | null>(null);
-
   const onRoundEnd = useCallback((score: number) => {
     setFinalScore(score);
     setGameOver(true);
 
-    // Submit score, then fetch leaderboard
+    // Submit score, then fetch leaderboard (large limit to find player rank)
     fetch("/api/scores", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, score }),
     })
-      .then(() => fetch("/api/scores"))
+      .then(() => fetch("/api/scores?limit=200"))
       .then((r) => r.json())
       .then((scores: ScoreEntry[]) => {
         setLeaderboard(scores);
-        // Find the player's entry to highlight it
         const entry = scores.find(
           (s) => s.username === username && s.score === score,
         );
         if (entry) setPlayerEntryId(entry.id);
         setSubmitted(true);
       })
-      .catch(() => setSubmitted(true)); // show buttons even if submit fails
+      .catch(() => setSubmitted(true));
   }, [username]);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ function GameInner() {
     started.current = true;
 
     import("../../src/main").then((mod) => {
-      cleanupRef.current = mod.boot(
+      handleRef.current = mod.boot(
         canvasRef.current!,
         textLayerRef.current!,
         stageRef.current!,
@@ -60,29 +60,32 @@ function GameInner() {
     });
 
     return () => {
-      cleanupRef.current?.();
+      handleRef.current?.cleanup();
     };
   }, [onRoundEnd]);
 
+  function viewLeaderboard() {
+    setShowLeaderboard(true);
+    handleRef.current?.enableScoop();
+  }
+
   function playAgain() {
-    cleanupRef.current?.();
+    handleRef.current?.cleanup();
     started.current = false;
     setGameOver(false);
     setFinalScore(0);
     setSubmitted(false);
+    setShowLeaderboard(false);
     setLeaderboard([]);
     setPlayerEntryId(null);
-
-    // Small delay so React re-renders the cleared state
     requestAnimationFrame(() => {
       if (!stageRef.current || !canvasRef.current || !textLayerRef.current) return;
-      // Clear the text layer
       const tl = textLayerRef.current;
       while (tl.firstChild) tl.removeChild(tl.firstChild);
 
       started.current = true;
       import("../../src/main").then((mod) => {
-        cleanupRef.current = mod.boot(
+        handleRef.current = mod.boot(
           canvasRef.current!,
           textLayerRef.current!,
           stageRef.current!,
@@ -92,6 +95,8 @@ function GameInner() {
     });
   }
 
+  const playerRank = leaderboard.findIndex((s) => s.id === playerEntryId);
+
   return (
     <>
       <main className="stage" ref={stageRef}>
@@ -100,66 +105,122 @@ function GameInner() {
       </main>
 
       {!gameOver && (
-        <button className="restart-btn" onClick={playAgain}>
-          Restart
-        </button>
+        <>
+          <button className="restart-btn" onClick={playAgain}>
+            Restart
+          </button>
+
+          <div className="hud">
+            Move fast to eat words! &nbsp;&bull;&nbsp; Left-click: bark
+            &nbsp;&bull;&nbsp; Right-click: poop (resets size)
+          </div>
+
+          <div className="credit-bar">
+            <span className="credit-label">Article credit:</span>
+            <a
+              className="credit-link"
+              href="https://giansegato.com/essays/agency-is-eating-the-world"
+              target="_blank"
+              rel="noreferrer"
+            >
+              &ldquo;Agency is Eating the World&rdquo;
+            </a>
+            <span className="credit-author">by Gianluca Segato</span>
+          </div>
+        </>
       )}
 
-      <div className="hud">
-        Move fast to eat words! &nbsp;&bull;&nbsp; Left-click: bark
-        &nbsp;&bull;&nbsp; Right-click: poop (resets size)
-      </div>
-
-      <div className="credit-bar">
-        <span className="credit-label">Article credit:</span>
-        <a
-          className="credit-link"
-          href="https://giansegato.com/essays/agency-is-eating-the-world"
-          target="_blank"
-          rel="noreferrer"
-        >
-          &ldquo;Agency is Eating the World&rdquo;
-        </a>
-        <span className="credit-author">by Gianluca Segato</span>
-      </div>
-
-      {gameOver && submitted && (
+      {/* Centered game-over modal (before viewing leaderboard) */}
+      {gameOver && !showLeaderboard && (
         <div className="game-over-overlay">
-          <div className="game-over-card">
+          <div className="game-over-modal">
             <h2>Time&apos;s Up!</h2>
             <div className="game-over-score">{finalScore}</div>
-            <div className="game-over-label">characters eaten</div>
+            <div className="game-over-label">score</div>
+            {submitted && playerRank >= 0 && (
+              <>
+                <div className="game-over-rank">
+                  #{playerRank + 1} of {leaderboard.length}
+                </div>
+                <div className="modal-nearby">
+                  <table className="leaderboard-table">
+                    <tbody>
+                      {leaderboard
+                        .map((s, i) => ({ ...s, rank: i }))
+                        .filter(
+                          (s) =>
+                            s.rank >= Math.max(0, playerRank - 2) &&
+                            s.rank <= Math.min(leaderboard.length - 1, playerRank + 2),
+                        )
+                        .map((s) => (
+                          <tr
+                            key={s.id}
+                            className={s.id === playerEntryId ? "highlight-row" : ""}
+                          >
+                            <td>{s.rank + 1}</td>
+                            <td>{s.username}</td>
+                            <td>{s.score}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            <div className="modal-actions">
+              {submitted && (
+                <button onClick={viewLeaderboard}>View Leaderboard</button>
+              )}
+              <button className="modal-btn-secondary" onClick={playAgain}>
+                Play Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {leaderboard.length > 0 && (
-              <div className="game-over-leaderboard">
-                <h3>Leaderboard</h3>
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Player</th>
-                      <th>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.slice(0, 10).map((s, i) => (
-                      <tr
-                        key={s.id}
-                        className={s.id === playerEntryId ? "highlight-row" : ""}
-                      >
-                        <td>{i + 1}</td>
-                        <td>{s.username}</td>
-                        <td>{s.score} chars</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* Leaderboard sidebar (after user clicks View Leaderboard) */}
+      {gameOver && showLeaderboard && submitted && (
+        <div className="game-over-sidebar">
+          <div className="sidebar-header">
+            <h2>Leaderboard</h2>
+            {playerRank >= 0 && (
+              <div className="game-over-rank">
+                You placed #{playerRank + 1} of {leaderboard.length}
               </div>
             )}
+          </div>
 
-            <div>
-              <button onClick={playAgain}>Play Again</button>
-            </div>
+          <div className="sidebar-leaderboard">
+            {leaderboard.length === 0 ? (
+              <div className="leaderboard-empty">No scores yet.</div>
+            ) : (
+              <table className="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.map((s, i) => (
+                    <tr
+                      key={s.id}
+                      className={s.id === playerEntryId ? "highlight-row" : ""}
+                    >
+                      <td>{i + 1}</td>
+                      <td>{s.username}</td>
+                      <td>{s.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="sidebar-actions">
+            <button onClick={playAgain}>Play Again</button>
           </div>
         </div>
       )}

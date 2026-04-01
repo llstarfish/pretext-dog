@@ -33,7 +33,7 @@ export function buildRegions(stageW: number, stageH: number): RegionState[] {
   const lx = fence.left + fp;
   const fenceInnerW = fence.right - fence.left - 2 * fp;
   const lw = m ? fenceInnerW : Math.min(520, fenceInnerW * 0.55);
-  const rx = m ? lx : Math.max(lx + lw + 40, fence.left + fenceInnerW * 0.52);
+  const rx = m ? lx : Math.max(lx + lw + 20, fence.left + fenceInnerW * 0.48);
   const rw = m ? fenceInnerW : Math.min(360, fence.right - fp - rx);
   const f = (b: number) => (m ? Math.round(b * 0.8) : b);
   const ty = fence.top + fp;
@@ -47,8 +47,7 @@ export function buildRegions(stageW: number, stageH: number): RegionState[] {
 
   // All left-column sections in order
   const leftSections: Section[] = [
-    { text: "Agency is Eating the World", font: `italic bold ${f(36)}px ${SERIF}`, lineHeight: f(44), maxWidth: Math.min(900, fenceInnerW) },
-    { text: "Gianluca Segato \u2014 April 2025 \u2014 giansegato.com/essays/agency-is-eating-the-world", font: `italic ${f(14)}px ${SERIF}`, lineHeight: f(22), maxWidth: m ? lw : Math.min(800, fenceInnerW) },
+    { text: "Agency is Eating the Word*", font: `italic bold ${f(36)}px ${SERIF}`, lineHeight: f(44), maxWidth: Math.min(900, fenceInnerW) },
     { text: "In 2023, Sam Altman famously said, \"There'll soon be a 1-person billion-dollar company.\" Two years later, we're watching his prediction unfold \u2014 not simply because of AI, but because of the kind of individuals who are wielding it.", font: bodyFont, lineHeight: bodyLH, maxWidth: lw },
     { text: "A new breed of companies is emerging: lean, unconventional, and wildly successful. They generate hundreds of millions of dollars and yet have no sales teams, no marketing departments, no formal HR, not even vertically specialized engineers. They're led by a handful of people doing the work of hundreds, leveraging machines to scale their impact.", font: bodyFont, lineHeight: bodyLH, maxWidth: lw },
     { text: "For years, we feared automation would replace humans. But as AI reshapes the economy, it's becoming clear that far from replacing human ingenuity, AI has amplified it. The critical dividing line in our economy is no longer simply education or specialization, but rather agency itself: the raw determination to make things happen without waiting for permission.", font: bodyFont, lineHeight: bodyLH, maxWidth: lw },

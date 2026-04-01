@@ -1,19 +1,29 @@
 // Physics
 export const FLEE_RADIUS = 150;
 export const FLEE_FORCE = 13;
-export const FLEE_DAMPING = 0.87;
-export const HOME_SPRING = 0.05;
 export const BASE_EAT_SPEED = 420;
 export const EAT_RADIUS = 40;
 export const BASE_DOG_LERP = 0.09;
 export const OBSTACLE_REPEL_RADIUS = 65;
 export const OBSTACLE_REPEL_FORCE = 20;
-export const REGROW_DELAY = 10000;
+export const REGROW_DELAY = 5000;
 export const REGROW_INTERVAL = 250;
-export const MAX_FATNESS = 5.0;
+export const MAX_FATNESS = 10.0;
 export const FATNESS_PER_CHAR = 0.015;
 export const BARK_RADIUS = 300;
 export const BARK_FORCE = 60;
+
+// Word steering (replaces spring/damping for character-like movement)
+export const WORD_MAX_SPEED = 10;
+export const WORD_ACCEL = 0.1;
+export const ARRIVAL_RATE = 0.12;
+export const FLEE_PUSH_DIST = 150;
+export const SCARED_FRICTION = 0.97;
+export const SCARED_RECOVERY_SPEED = 1.5;
+export const SCARED_MIN_DURATION = 5000; // ms before scared words can recover
+export const SCARED_HESITATION = 150;    // ms of freeze before fleeing
+export const SCARED_ACCEL = 0.6;         // max flee acceleration (ramps up)
+export const SCARED_RAMP_TIME = 800;     // ms to reach full flee speed
 
 // Fonts — Stardew Valley cozy style
 export const CARTOON =

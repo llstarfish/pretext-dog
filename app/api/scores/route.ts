@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { insertScore, getLeaderboard } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const scores = await getLeaderboard();
+    const limit = Math.min(
+      200,
+      Math.max(1, Number(req.nextUrl.searchParams.get("limit")) || 20),
+    );
+    const scores = await getLeaderboard(limit);
     return NextResponse.json(scores);
   } catch (e) {
     // If DB is not configured yet, return empty leaderboard

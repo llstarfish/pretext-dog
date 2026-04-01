@@ -26,13 +26,13 @@ export function layoutRegion(
 
   const oldMotion = new Map<
     number,
-    { x: number; y: number; vx: number; vy: number; scared: boolean }
+    { x: number; y: number; vx: number; vy: number; scared: boolean; scaredAt: number }
   >();
   if (preserveMotion) {
     for (const w of state.words) {
       if (w.regionIndex === ri && w.alive) {
         oldMotion.set(w.slotIndex, {
-          x: w.x, y: w.y, vx: w.vx, vy: w.vy, scared: w.scared,
+          x: w.x, y: w.y, vx: w.vx, vy: w.vy, scared: w.scared, scaredAt: w.scaredAt,
         });
       }
     }
@@ -100,6 +100,7 @@ export function layoutRegion(
           alive: true,
           color,
           scared: old ? old.scared : false,
+          scaredAt: old ? old.scaredAt : 0,
         };
         if (old) {
           el.style.transform = `translate(${old.x - cx}px, ${old.y - lineY}px)`;

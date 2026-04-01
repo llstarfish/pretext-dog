@@ -15,6 +15,7 @@ export type Word = {
   alive: boolean;
   color: string;
   scared: boolean;
+  scaredAt: number;
 };
 
 export type TextRegion = {
@@ -50,6 +51,13 @@ export type PointPopup = {
   amount: number;
   age: number;       // seconds elapsed
   lifetime: number;  // total seconds before removal
+};
+
+export type ScoopAnim = {
+  x: number;
+  y: number;
+  radius: number;
+  progress: number; // 0→1 over duration
 };
 
 export type EatenRecord = {

@@ -1,12 +1,15 @@
-import type { Word, Crumb, Obstacle, EatenRecord, RegionState, PointPopup } from "./types";
+import type { Word, Crumb, Obstacle, EatenRecord, RegionState, PointPopup, ScoopAnim } from "./types";
 import { MAX_FATNESS, FATNESS_PER_CHAR } from "./constants";
 
 export type DogState = {
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   facingRight: boolean;
   frame: number;
   frameTimer: number;
+  walkSpeed: number;   // smoothed movement intensity for animation
   mouthOpen: boolean;
   mouthTimer: number;
   tailWag: number;
@@ -33,6 +36,7 @@ export type GameState = {
   obstacles: Obstacle[];
   eatenRecords: EatenRecord[];
   pointPopups: PointPopup[];
+  scoopAnims: ScoopAnim[];
   regionStates: RegionState[];
   widthCache: Map<string, number>;
   reflowQueued: Set<number>;
@@ -41,6 +45,7 @@ export type GameState = {
   // Round state
   roundStartTime: number;
   roundOver: boolean;
+  scoopEnabled: boolean;
   shakeTimer: number;
 };
 
@@ -58,9 +63,12 @@ export function createState(): GameState {
     dog: {
       x: -200,
       y: -200,
+      vx: 0,
+      vy: 0,
       facingRight: true,
       frame: 0,
       frameTimer: 0,
+      walkSpeed: 0,
       mouthOpen: false,
       mouthTimer: 0,
       tailWag: 0,
@@ -75,6 +83,7 @@ export function createState(): GameState {
     obstacles: [],
     eatenRecords: [],
     pointPopups: [],
+    scoopAnims: [],
     regionStates: [],
     widthCache: new Map(),
     reflowQueued: new Set(),
@@ -82,6 +91,7 @@ export function createState(): GameState {
     lastTime: 0,
     roundStartTime: 0,
     roundOver: false,
+    scoopEnabled: false,
     shakeTimer: 0,
   };
 }

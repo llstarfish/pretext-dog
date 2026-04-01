@@ -2,8 +2,8 @@ import type { DomRefs } from "./types";
 import { createState } from "./state";
 import { buildRegions } from "./content";
 import { layoutAll, processReflows } from "./layout";
-import { updateDog, updateWords, checkRegrowth, updateCrumbs, updatePointPopups, doPoop, doBark } from "./physics";
-import { drawBackground, drawObstacles, drawCrumbs, drawDogGlow, drawDog, drawPointPopups, drawCursor, drawCounter, drawTimer } from "./renderer";
+import { updateDog, updateWords, checkRegrowth, updateCrumbs, updatePointPopups, doPoop, doBark, tryScoop, updateScoopAnims } from "./physics";
+import { drawBackground, drawObstacles, drawCrumbs, drawDogGlow, drawDog, drawPointPopups, drawCursor, drawCounter, drawTimer, drawScoopAnims, drawPoopHighlight, drawScoopHint } from "./renderer";
 import { ROUND_DURATION } from "./constants";
 
 export type GameCallbacks = {
@@ -12,18 +12,24 @@ export type GameCallbacks = {
 
 // ── Boot (called from React) ───────────────────────────────────────
 
+export type GameHandle = {
+  cleanup: () => void;
+  enableScoop: () => void;
+};
+
 export function boot(
   canvas: HTMLCanvasElement,
   textLayer: HTMLDivElement,
   stage: HTMLDivElement,
   callbacks: GameCallbacks,
-): () => void {
+): GameHandle {
   const ctx = canvas.getContext("2d")!;
 
   const refs: DomRefs = { canvas, ctx, textLayer, stage };
   const state = createState();
   let animId = 0;
   let disposed = false;
+  let roundOverHandled = false;
 
   // ── Pointer helpers ────────────────────────────────────────────
 
@@ -66,7 +72,13 @@ export function boot(
   const onMouseLeave = () => { state.mouseInStage = false; };
 
   const onMouseDown = (e: MouseEvent) => {
-    if (e.button === 0 && !state.roundOver) doBark(state);
+    if (e.button === 0) {
+      if (state.roundOver && state.scoopEnabled) {
+        tryScoop(state, state.mouseX, state.mouseY);
+      } else if (!state.roundOver) {
+        doBark(state);
+      }
+    }
   };
 
   const onContextMenu = (e: MouseEvent) => {
@@ -100,6 +112,11 @@ export function boot(
 
   // ── Init ───────────────────────────────────────────────────────
 
+  // Reset post-game visual state (for Play Again)
+  textLayer.style.transition = "";
+  textLayer.style.opacity = "1";
+  stage.style.cursor = "";
+
   resize();
   rebuildContent();
   state.roundStartTime = performance.now();
@@ -129,6 +146,18 @@ export function boot(
       callbacks.onRoundEnd(state.dog.score);
     }
 
+    // When round ends: show normal cursor immediately
+    if (state.roundOver && !roundOverHandled) {
+      roundOverHandled = true;
+      stage.style.cursor = "default";
+    }
+
+    // Hide text layer when scoop mode is enabled (user viewed leaderboard)
+    if (state.scoopEnabled && textLayer.style.opacity !== "0") {
+      textLayer.style.transition = "opacity 0.5s";
+      textLayer.style.opacity = "0";
+    }
+
     const mdx = state.mouseX - state.prevMouseX;
     const mdy = state.mouseY - state.prevMouseY;
     if (dt > 0) {
@@ -145,6 +174,7 @@ export function boot(
     }
     updateCrumbs(state, dtS);
     updatePointPopups(state, dtS);
+    updateScoopAnims(state, dtS);
 
     // Screen shake
     if (state.shakeTimer > 0) {
@@ -157,20 +187,42 @@ export function boot(
       stage.style.transform = "";
     }
 
+    // Update cursor when hovering near poop (post-game, scoop mode)
+    if (state.roundOver && state.scoopEnabled) {
+      let nearPoop = false;
+      for (const o of state.obstacles) {
+        if (Math.hypot(state.mouseX - o.x, state.mouseY - o.y) < o.radius + 25) {
+          nearPoop = true;
+          break;
+        }
+      }
+      stage.style.cursor = nearPoop ? "pointer" : "default";
+    }
+
     ctx.clearRect(0, 0, state.stageW, state.stageH);
     drawBackground(ctx, state.stageW, state.stageH);
     drawObstacles(ctx, state);
     drawCrumbs(ctx, state);
-    drawCounter(ctx, state);
-    drawTimer(ctx, state);
 
-    if (state.dog.x > -100) {
-      drawDogGlow(ctx, state);
-      drawDog(ctx, state);
-      drawPointPopups(ctx, state);
+    if (state.roundOver && state.scoopEnabled) {
+      // Post-game scoop mode: scoop anims and hint (cursor changes to pointer on hover)
+      drawScoopAnims(ctx, state);
+      drawScoopHint(ctx, state);
+    } else if (state.roundOver) {
+      // Post-game before scoop: just show poop and scoop anims
+      drawScoopAnims(ctx, state);
+    } else {
+      drawCounter(ctx, state);
+      drawTimer(ctx, state);
+
+      if (state.dog.x > -100) {
+        drawDogGlow(ctx, state);
+        drawDog(ctx, state);
+        drawPointPopups(ctx, state);
+      }
+
+      drawCursor(ctx, state);
     }
-
-    drawCursor(ctx, state);
 
     animId = requestAnimationFrame(loop);
   }
@@ -179,16 +231,21 @@ export function boot(
 
   // ── Cleanup ────────────────────────────────────────────────────
 
-  return () => {
-    disposed = true;
-    cancelAnimationFrame(animId);
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseleave", onMouseLeave);
-    stage.removeEventListener("mousedown", onMouseDown);
-    stage.removeEventListener("contextmenu", onContextMenu);
-    stage.removeEventListener("touchmove", onTouchMove);
-    stage.removeEventListener("touchstart", onTouchStart);
-    stage.removeEventListener("touchend", onTouchEnd);
-    window.removeEventListener("resize", onResize);
+  return {
+    cleanup() {
+      disposed = true;
+      cancelAnimationFrame(animId);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      stage.removeEventListener("mousedown", onMouseDown);
+      stage.removeEventListener("contextmenu", onContextMenu);
+      stage.removeEventListener("touchmove", onTouchMove);
+      stage.removeEventListener("touchstart", onTouchStart);
+      stage.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("resize", onResize);
+    },
+    enableScoop() {
+      state.scoopEnabled = true;
+    },
   };
 }

@@ -136,18 +136,22 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Start screen                                                        */
+/* Start screen overlay (sits on top of the persistent canvas)         */
 /* ------------------------------------------------------------------ */
 
-.start-screen {
+.start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: url("/farm-bg.png") center / cover no-repeat;
-  background-color: #c8a868;
-  gap: 24px;
+  pointer-events: none;
+}
+
+.start-overlay > * {
+  pointer-events: auto;
 }
 
 .start-card {
@@ -312,82 +316,78 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Game over overlay                                                    */
+/* Game over centered modal                                             */
 /* ------------------------------------------------------------------ */
-
-.game-over-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(40, 25, 10, 0.75);
-  animation: fadeIn 0.3s ease;
-}
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.game-over-card {
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  animation: fadeIn 0.3s ease;
+}
+
+.game-over-modal {
   background: #f5e6c8;
   border: 4px solid #6b4f32;
-  border-radius: 12px;
-  padding: 36px 44px;
+  border-radius: 16px;
   box-shadow:
-    0 0 0 2px #a08060,
-    0 12px 48px rgba(0, 0, 0, 0.4);
+    0 0 0 4px #a08060,
+    0 12px 40px rgba(0, 0, 0, 0.4);
+  padding: 36px 48px;
   text-align: center;
-  max-width: 440px;
-  width: 90%;
-  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 280px;
+  max-width: 90vw;
+  animation: modalPop 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes popIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.game-over-card h2 {
-  font-size: 26px;
+.game-over-modal h2 {
+  font-size: 28px;
   color: #4a3520;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-.game-over-score {
-  font-size: 48px;
+.game-over-modal .game-over-score {
+  font-size: 56px;
   font-weight: 700;
   color: #5b8c3e;
-  margin: 8px 0;
+  margin: 8px 0 2px;
 }
 
-.game-over-label {
+.game-over-modal .game-over-label {
   font-size: 14px;
   color: #8b6b47;
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 
-.game-over-leaderboard {
-  margin-bottom: 16px;
-  text-align: left;
-}
-
-.game-over-leaderboard h3 {
+.game-over-modal .game-over-rank {
   font-size: 15px;
-  color: #4a3520;
-  text-align: center;
+  font-weight: 700;
+  color: #5b8c3e;
   margin-bottom: 8px;
 }
 
-.game-over-leaderboard .highlight-row td {
-  background: rgba(91, 140, 62, 0.18);
-  color: #3a6a22;
-  font-weight: 700;
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.game-over-card button {
+.modal-actions button {
   padding: 12px 32px;
   font-size: 16px;
   font-weight: 700;
@@ -397,21 +397,165 @@ body {
   border: 3px solid #3a6a22;
   border-radius: 8px;
   cursor: pointer;
-  margin: 6px;
   transition: background 0.15s;
+  width: 100%;
 }
 
-.game-over-card button:hover {
+.modal-actions button:hover {
   background: #4a7830;
 }
 
-.game-over-card .btn-secondary {
-  background: #8b6b47;
-  border-color: #6b4f32;
+.modal-actions .modal-btn-secondary {
+  background: transparent;
+  color: #6b4f32;
+  border: 2px solid #b8996e;
 }
 
-.game-over-card .btn-secondary:hover {
-  background: #7a5c3a;
+.modal-actions .modal-btn-secondary:hover {
+  background: rgba(107, 79, 50, 0.08);
+}
+
+.modal-nearby {
+  margin: 14px 0 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #d4b888;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-nearby .leaderboard-table {
+  margin: 0;
+  font-size: 14px;
+}
+
+.modal-nearby .leaderboard-table td {
+  padding: 6px 12px;
+}
+
+.modal-nearby .highlight-row td {
+  background: rgba(91, 140, 62, 0.18);
+  color: #3a6a22;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ */
+/* Game over sidebar                                                    */
+/* ------------------------------------------------------------------ */
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.game-over-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  width: 380px;
+  max-width: 90vw;
+  background: #f5e6c8;
+  border-left: 4px solid #6b4f32;
+  box-shadow:
+    -4px 0 0 0 #a08060,
+    -8px 0 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sidebar-header {
+  padding: 28px 24px 20px;
+  text-align: center;
+  border-bottom: 2px solid #d4b888;
+  animation: fadeIn 0.3s ease 0.15s both;
+}
+
+.sidebar-header h2 {
+  font-size: 24px;
+  color: #4a3520;
+  margin-bottom: 4px;
+}
+
+.game-over-score {
+  font-size: 48px;
+  font-weight: 700;
+  color: #5b8c3e;
+  margin: 4px 0;
+}
+
+.game-over-label {
+  font-size: 14px;
+  color: #8b6b47;
+  margin-bottom: 6px;
+}
+
+.game-over-rank {
+  font-size: 15px;
+  font-weight: 700;
+  color: #5b8c3e;
+}
+
+.sidebar-leaderboard {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+  animation: fadeIn 0.3s ease 0.25s both;
+}
+
+.sidebar-leaderboard h3 {
+  font-size: 15px;
+  color: #4a3520;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.sidebar-leaderboard .highlight-row td {
+  background: rgba(91, 140, 62, 0.18);
+  color: #3a6a22;
+  font-weight: 700;
+}
+
+.sidebar-actions {
+  padding: 16px 24px 24px;
+  text-align: center;
+  border-top: 2px solid #d4b888;
+}
+
+.sidebar-actions button {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: #5b8c3e;
+  border: 3px solid #3a6a22;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+
+.sidebar-actions button:hover {
+  background: #4a7830;
+}
+
+/* ------------------------------------------------------------------ */
+/* Start card & credit bar entrance after intro                        */
+/* ------------------------------------------------------------------ */
+
+.start-card-enter {
+  animation: cardPopIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cardPopIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.credit-bar-enter {
+  animation: fadeIn 0.4s ease 0.25s both;
 }
 
 /* ------------------------------------------------------------------ */

@@ -8,12 +8,14 @@ export function drawBackground(_ctx: CanvasRenderingContext2D, _stageW: number, 
 }
 
 export function drawObstacles(ctx: CanvasRenderingContext2D, state: GameState) {
-  for (const o of state.obstacles) drawPoop(ctx, o.x, o.y);
+  for (const o of state.obstacles) drawPoop(ctx, o.x, o.y, o.radius);
 }
 
-function drawPoop(ctx: CanvasRenderingContext2D, x: number, y: number) {
+function drawPoop(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  const scale = radius / 28;
   ctx.save();
   ctx.translate(x, y);
+  ctx.scale(scale, scale);
 
   ctx.globalAlpha = 0.12;
   ctx.fillStyle = "#000";
@@ -85,7 +87,8 @@ export function drawDogGlow(ctx: CanvasRenderingContext2D, state: GameState) {
   if (t <= 0) return;
 
   const a = Math.min(t, 1) * 0.22;
-  const r = 45 * f;
+  const vf = 1 + Math.pow(Math.max(0, f - 1), 0.7) * 0.7;
+  const r = 45 * vf;
   const dog = state.dog;
   const g = ctx.createRadialGradient(dog.x, dog.y, 0, dog.x, dog.y, r);
   g.addColorStop(0, `rgba(255, 200, 50, ${a})`);
@@ -97,8 +100,10 @@ export function drawDogGlow(ctx: CanvasRenderingContext2D, state: GameState) {
 }
 
 export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
-  const f = fatness(state);
-  const hf = 1 + (f - 1) * 0.3;
+  const rawF = fatness(state);
+  // Visual fatness: sub-linear curve keeps the dog cute when chubby
+  const f = 1 + Math.pow(Math.max(0, rawF - 1), 0.75) * 0.85;
+  const hf = 1 + Math.pow(Math.max(0, rawF - 1), 0.75) * 0.65;
   const dog = state.dog;
 
   ctx.save();
@@ -110,7 +115,15 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
   if (!dog.facingRight) ctx.scale(-1, 1);
   if (squatting) ctx.translate(0, 6);
 
-  const bob = squatting ? 0 : Math.sin(dog.frame * 0.3) * 2;
+  // Charming waddle tilt when chubby and walking
+  if (f > 1.2 && dog.walkSpeed > 0.05 && !squatting) {
+    ctx.rotate(Math.sin(dog.frame * 0.15) * (f - 1) * 0.025 * Math.min(dog.walkSpeed, 1));
+  }
+
+  // Blend between idle breathing and walk bounce based on walkSpeed
+  const idleBob = Math.sin(performance.now() / 600) * 1.2;
+  const walkBob = Math.sin(dog.frame * 0.3) * (2 + (f - 1) * 1);
+  const bob = squatting ? 0 : idleBob * (1 - dog.walkSpeed) + walkBob * dog.walkSpeed;
 
   // Shadow
   ctx.globalAlpha = 0.22;
@@ -137,24 +150,27 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
 
   // Back legs (behind body)
   ctx.fillStyle = "#a07030";
-  const legLen = Math.max(5, 12 - (f - 1) * 4);
+  const legLen = Math.max(8, 14 - (f - 1) * 2.5);
+  const legW = 6 + (f - 1) * 2;
+  const pawRx = 5 + (f - 1) * 0.5;
+  const pawRy = 3 + (f - 1) * 0.3;
   const lp = dog.frame * 0.5;
-  const fl = squatting ? 0 : Math.sin(lp) * 4;
-  const bl = squatting ? 0 : Math.sin(lp + Math.PI) * 4;
+  const fl = squatting ? 0 : Math.sin(lp) * 4 * dog.walkSpeed;
+  const bl = squatting ? 0 : Math.sin(lp + Math.PI) * 4 * dog.walkSpeed;
   const legY = bob + 10 * f;
 
   ctx.beginPath();
-  ctx.roundRect(-18 * f, legY, 6, legLen + fl, 2);
+  ctx.roundRect(-18 * f, legY, legW, legLen + fl, 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.roundRect(-12 * f, legY, 6, legLen + bl, 2);
+  ctx.roundRect(-12 * f, legY, legW, legLen + bl, 2);
   ctx.fill();
 
   // Back paws
   ctx.fillStyle = "#e8c888";
   const pawY = legY + legLen;
-  ctx.beginPath(); ctx.ellipse(-15 * f, pawY + fl, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-9 * f, pawY + bl, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-15 * f, pawY + fl, pawRx, pawRy, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-9 * f, pawY + bl, pawRx, pawRy, 0, 0, Math.PI * 2); ctx.fill();
 
   // Body
   ctx.fillStyle = "#c8944a";
@@ -206,16 +222,16 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
   // Front legs (in front of body)
   ctx.fillStyle = "#a07030";
   ctx.beginPath();
-  ctx.roundRect(12 * f, legY, 6, legLen + fl, 2);
+  ctx.roundRect(12 * f, legY, legW, legLen + fl, 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.roundRect(6 * f, legY, 6, legLen + bl, 2);
+  ctx.roundRect(6 * f, legY, legW, legLen + bl, 2);
   ctx.fill();
 
   // Front paws
   ctx.fillStyle = "#e8c888";
-  ctx.beginPath(); ctx.ellipse(15 * f, pawY + fl, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(9 * f, pawY + bl, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(15 * f, pawY + fl, pawRx, pawRy, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(9 * f, pawY + bl, pawRx, pawRy, 0, 0, Math.PI * 2); ctx.fill();
 
   // Head
   ctx.fillStyle = "#c8944a";
@@ -344,10 +360,11 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.quadraticCurveTo(24 * hf, bob - 18, 29 * hf, bob - 16);
   ctx.stroke();
 
-  // Rosy cheeks
-  ctx.fillStyle = "rgba(255, 120, 120, 0.25)";
+  // Rosy cheeks (more pronounced when chubby)
+  const cheekAlpha = Math.min(0.25 + (f - 1) * 0.06, 0.5);
+  ctx.fillStyle = `rgba(255, 120, 120, ${cheekAlpha})`;
   ctx.beginPath();
-  ctx.ellipse(29 * hf, bob + 1, 5, 3, 0, 0, Math.PI * 2);
+  ctx.ellipse(29 * hf, bob + 1, 5 + (f - 1) * 1, 3 + (f - 1) * 0.6, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Whisker dots
@@ -358,29 +375,124 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.fill();
   }
 
-  // Bark shockwave
+  // Bark effects
   if (barking) {
-    const barkProgress = 1 - dog.barkAnim / 350;
-    const ringR = 30 + barkProgress * BARK_RADIUS;
-    ctx.globalAlpha = (1 - barkProgress) * 0.3;
-    ctx.strokeStyle = "#f0d848";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(30 * hf, bob, ringR, -0.6, 0.6);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    const bp = 1 - dog.barkAnim / 350; // 0→1 over bark duration
+    const mouthX = 30 * hf;
+    const mouthY = bob;
 
-    if (barkProgress < 0.5) {
-      ctx.globalAlpha = 1 - barkProgress * 2;
-      ctx.font = `bold ${18 + barkProgress * 20}px ${CARTOON}`;
-      ctx.fillStyle = "#c75050";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("WOOF!", 36 * hf + barkProgress * 40, bob - 20 - barkProgress * 20);
-      ctx.textAlign = "start";
-      ctx.textBaseline = "alphabetic";
+    // 1. Radial flash burst (centered on dog)
+    if (bp < 0.2) {
+      const flashA = (1 - bp / 0.2) * 0.3;
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, BARK_RADIUS);
+      gr.addColorStop(0, `rgba(255, 240, 180, ${flashA})`);
+      gr.addColorStop(0.4, `rgba(255, 220, 80, ${flashA * 0.3})`);
+      gr.addColorStop(1, "rgba(255, 220, 80, 0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.arc(0, 0, BARK_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 2. Ground impact ellipse ripple
+    if (bp < 0.7) {
+      const gp = bp / 0.7;
+      ctx.globalAlpha = (1 - gp) * 0.25;
+      ctx.strokeStyle = "rgba(255, 220, 80, 0.8)";
+      ctx.lineWidth = 2 * (1 - gp);
+      ctx.beginPath();
+      ctx.ellipse(0, 28 + (f - 1) * 8, 30 + gp * 140, 8 + gp * 25, 0, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.globalAlpha = 1;
     }
+
+    // 3. Triple expanding shockwave arcs with glow
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 216, 72, 0.5)";
+    for (let ring = 0; ring < 3; ring++) {
+      const delay = ring * 0.12;
+      const rp = Math.max(0, (bp - delay) / (1 - delay));
+      if (rp <= 0 || rp >= 1) continue;
+      const ringR = 25 + rp * BARK_RADIUS * (0.6 + ring * 0.2);
+      ctx.globalAlpha = (1 - rp) * (0.45 - ring * 0.12);
+      ctx.shadowBlur = ring === 0 ? 12 : 6;
+      ctx.strokeStyle = ring === 0 ? "#fff" : "#f0d848";
+      ctx.lineWidth = (5 - ring) * (1 - rp * 0.3);
+      ctx.beginPath();
+      ctx.arc(mouthX, mouthY, ringR, -0.8, 0.8);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 4. Speed lines radiating from mouth
+    if (bp < 0.55) {
+      const sp = bp / 0.55;
+      const numLines = 9;
+      ctx.lineCap = "round";
+      for (let i = 0; i < numLines; i++) {
+        const angle = -0.65 + (1.3 * i / (numLines - 1));
+        const startR = 35 + sp * 70;
+        const endR = startR + 10 + sp * 55;
+        ctx.globalAlpha = (1 - sp * sp) * (i % 2 === 0 ? 0.6 : 0.35);
+        ctx.strokeStyle = i % 2 === 0 ? "#fff" : "#f0d848";
+        ctx.lineWidth = i % 2 === 0 ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.moveTo(mouthX + Math.cos(angle) * startR, mouthY + Math.sin(angle) * startR);
+        ctx.lineTo(mouthX + Math.cos(angle) * endR, mouthY + Math.sin(angle) * endR);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 5. Comic starburst "WOOF!"
+    if (bp < 0.7) {
+      const tp = bp / 0.7;
+      const scale = 0.6 + tp * 0.4;
+      const textX = mouthX + 45 * scale + tp * 20;
+      const textY = mouthY - 25 - tp * 12;
+
+      ctx.globalAlpha = 1 - tp * tp;
+
+      // Jagged starburst shape behind text
+      const burstR = 30 * scale;
+      const spikes = 10;
+      ctx.fillStyle = "#ffe040";
+      ctx.strokeStyle = "#d4a800";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= spikes * 2; i++) {
+        const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+        const r = i % 2 === 0 ? burstR : burstR * 0.55;
+        if (i === 0) ctx.moveTo(textX + Math.cos(a) * r, textY + Math.sin(a) * r);
+        else ctx.lineTo(textX + Math.cos(a) * r, textY + Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Bold text with double outline (comic style)
+      const fontSize = (22 + tp * 14) * scale;
+      ctx.font = `900 ${fontSize}px ${CARTOON}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+
+      ctx.strokeStyle = "#7a1818";
+      ctx.lineWidth = 5;
+      ctx.strokeText("WOOF!", textX, textY);
+
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeText("WOOF!", textX, textY);
+
+      ctx.fillStyle = "#d44040";
+      ctx.fillText("WOOF!", textX, textY);
+
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    ctx.globalAlpha = 1;
   }
 
   ctx.restore();
@@ -398,7 +510,8 @@ export function drawPointPopups(ctx: CanvasRenderingContext2D, state: GameState)
     ctx.globalAlpha = Math.max(0, alpha);
 
     const text = `+${p.amount}`;
-    ctx.font = `bold 22px ${CARTOON}`;
+    const fontSize = 22 + Math.min(p.amount, 40) * 0.8;
+    ctx.font = `bold ${fontSize}px ${CARTOON}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -407,8 +520,12 @@ export function drawPointPopups(ctx: CanvasRenderingContext2D, state: GameState)
     ctx.lineWidth = 3;
     ctx.strokeText(text, 0, 0);
 
-    // Fill with gold gradient
-    ctx.fillStyle = "#ffe040";
+    // Fill color based on score tier
+    ctx.fillStyle =
+      p.amount >= 1000 ? "#8b0000" :  // dark red
+      p.amount >= 500  ? "#dc2626" :  // red
+      p.amount >= 300  ? "#f97316" :  // orange
+                         "#ffe040";   // yellow
     ctx.fillText(text, 0, 0);
 
     ctx.restore();
@@ -420,9 +537,7 @@ export function drawPointPopups(ctx: CanvasRenderingContext2D, state: GameState)
 
 export function drawCounter(ctx: CanvasRenderingContext2D, state: GameState) {
   const cx = state.stageW / 2;
-  const scoreText = `Score: ${state.dog.score}`;
-  const bellyText = `Belly: ${state.dog.charsEaten}`;
-  const display = `${scoreText}  |  ${bellyText}`;
+  const display = `Score: ${state.dog.score}`;
 
   ctx.font = `bold 14px ${CARTOON}`;
   const tw = ctx.measureText(display).width + 30;
@@ -486,6 +601,193 @@ export function drawCursor(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.fill();
 
   ctx.restore();
+}
+
+// ── Scoop animation (post-game poop cleanup) ─────────────────────
+
+export function drawScoopAnims(ctx: CanvasRenderingContext2D, state: GameState) {
+  for (const anim of state.scoopAnims) {
+    drawScoopAnim(ctx, anim);
+  }
+}
+
+function drawScoopAnim(
+  ctx: CanvasRenderingContext2D,
+  anim: { x: number; y: number; radius: number; progress: number },
+) {
+  const p = anim.progress;
+
+  // Phase 1: Squash (0–0.15)
+  if (p < 0.15) {
+    const t = p / 0.15;
+    ctx.save();
+    ctx.translate(anim.x, anim.y);
+    ctx.scale(1 + t * 0.15, 1 - t * 0.25);
+    ctx.translate(-anim.x, -anim.y);
+    drawPoop(ctx, anim.x, anim.y, anim.radius);
+    ctx.restore();
+  }
+  // Phase 2: Lift + morph into bag (0.15–0.5)
+  else if (p < 0.5) {
+    const t = (p - 0.15) / 0.35;
+    const liftY = -40 * t;
+
+    // Fading poop
+    if (t < 0.7) {
+      ctx.save();
+      ctx.globalAlpha = 1 - t / 0.7;
+      drawPoop(ctx, anim.x, anim.y + liftY, anim.radius * (1 - t * 0.3));
+      ctx.restore();
+    }
+
+    // Appearing bag
+    const bagT = t * t;
+    if (bagT > 0.1) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (bagT - 0.1) / 0.5);
+      drawBag(ctx, anim.x, anim.y + liftY, anim.radius * 0.9, anim.radius * 1.2);
+      ctx.restore();
+    }
+  }
+  // Phase 3: Bag flies away (0.5–0.8)
+  else if (p < 0.8) {
+    const t = (p - 0.5) / 0.3;
+    const arcX = 50 * t;
+    const arcY = -40 - 50 * t * t;
+    const scale = 1 - t * 0.8;
+
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    ctx.translate(anim.x + arcX, anim.y + arcY);
+    ctx.scale(scale, scale);
+    drawBag(ctx, 0, 0, anim.radius * 0.9, anim.radius * 1.2);
+    ctx.restore();
+  }
+
+  // Phase 4: Sparkle poof (0.6–1.0)
+  if (p > 0.6) {
+    const t = (p - 0.6) / 0.4;
+    const spread = 10 + t * 30;
+
+    ctx.save();
+    ctx.globalAlpha = (1 - t) * 0.7;
+
+    const angles = [0, 1.257, 2.513, 3.77, 5.027];
+    const colors = ["#ffd700", "#90ee90", "#ffd700", "#fff", "#90ee90"];
+
+    for (let i = 0; i < 5; i++) {
+      const sx = anim.x + Math.cos(angles[i] + t * 2) * spread;
+      const sy = anim.y + Math.sin(angles[i] + t * 2) * spread;
+      const size = (1 - t) * 3.5;
+      ctx.fillStyle = colors[i];
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawBag(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  // Bag body
+  ctx.fillStyle = "#8B7355";
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - h / 2 + 4, w, h - 4, [0, 0, w * 0.25, w * 0.25]);
+  ctx.fill();
+
+  ctx.strokeStyle = "#5a4a35";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Tied top
+  ctx.fillStyle = "#7a6345";
+  ctx.beginPath();
+  ctx.moveTo(x - w * 0.35, y - h / 2 + 4);
+  ctx.quadraticCurveTo(x - w * 0.15, y - h / 2 - 4, x, y - h / 2);
+  ctx.quadraticCurveTo(x + w * 0.15, y - h / 2 - 4, x + w * 0.35, y - h / 2 + 4);
+  ctx.fill();
+
+  // Knot
+  ctx.fillStyle = "#6b5338";
+  ctx.beginPath();
+  ctx.ellipse(x, y - h / 2 - 1, 3, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ── Poop hover highlight (post-game) ──────────────────────────────
+
+export function drawPoopHighlight(ctx: CanvasRenderingContext2D, state: GameState) {
+  if (!state.mouseInStage) return;
+
+  for (const o of state.obstacles) {
+    const dist = Math.hypot(state.mouseX - o.x, state.mouseY - o.y);
+    if (dist < o.radius + 25) {
+      const pulse = 0.5 + Math.sin(performance.now() / 300) * 0.2;
+
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.radius + 8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.radius + 14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.restore();
+      break;
+    }
+  }
+}
+
+// ── "Click to clean up" hint (post-game) ──────────────────────────
+
+export function drawScoopHint(ctx: CanvasRenderingContext2D, state: GameState) {
+  if (state.obstacles.length === 0) return;
+
+  const cx = (state.stageW - 360) / 2; // offset for sidebar
+  const cy = state.stageH - 70;
+
+  const pulse = 0.6 + Math.sin(performance.now() / 500) * 0.15;
+
+  ctx.save();
+  ctx.globalAlpha = pulse;
+
+  ctx.fillStyle = "rgba(60, 40, 20, 0.8)";
+  ctx.beginPath();
+  ctx.roundRect(cx - 85, cy - 16, 170, 32, 16);
+  ctx.fill();
+
+  ctx.strokeStyle = "#5a4020";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(cx - 85, cy - 16, 170, 32, 16);
+  ctx.stroke();
+
+  ctx.fillStyle = "#fff";
+  ctx.font = `bold 14px ${CARTOON}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("stoop and scoop", cx, cy);
+
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
 }
 
 export function drawTimer(ctx: CanvasRenderingContext2D, state: GameState) {
