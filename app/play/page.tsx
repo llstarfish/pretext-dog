@@ -26,11 +26,13 @@ function GameInner() {
     setFinalScore(score);
     setGameOver(true);
 
+    const userId = localStorage.getItem("pretext-dog-user-id") || "anonymous";
+
     // Submit score, then fetch leaderboard (large limit to find player rank)
     fetch("/api/scores", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, score }),
+      body: JSON.stringify({ userId, username, score }),
     })
       .then(() => fetch("/api/scores?limit=200"))
       .then((r) => r.json())

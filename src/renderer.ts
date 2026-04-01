@@ -580,25 +580,24 @@ export function drawCursor(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.save();
   ctx.translate(x, y);
 
-  // White crosshair cursor
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 2;
+  // White arrow cursor
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.lineWidth = 1;
   ctx.shadowColor = "rgba(0,0,0,0.5)";
   ctx.shadowBlur = 3;
 
-  const size = 10;
   ctx.beginPath();
-  ctx.moveTo(0, -size);
-  ctx.lineTo(0, size);
-  ctx.moveTo(-size, 0);
-  ctx.lineTo(size, 0);
-  ctx.stroke();
-
-  // Center dot
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.arc(0, 0, 2, 0, Math.PI * 2);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 18);
+  ctx.lineTo(4, 14);
+  ctx.lineTo(8, 22);
+  ctx.lineTo(11, 21);
+  ctx.lineTo(7, 13);
+  ctx.lineTo(12, 12);
+  ctx.closePath();
   ctx.fill();
+  ctx.stroke();
 
   ctx.restore();
 }

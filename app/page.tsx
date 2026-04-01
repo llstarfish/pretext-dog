@@ -6,9 +6,21 @@ import { drawDog } from "../src/renderer";
 import { createState } from "../src/state";
 import { CARTOON } from "../src/constants";
 
+function getOrCreateUserId(): string {
+  const key = "pretext-dog-user-id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 export default function StartPage() {
   const [introDone, setIntroDone] = useState(false);
   const [username, setUsername] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [checking, setChecking] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
 
@@ -239,9 +251,28 @@ export default function StartPage() {
   }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────
-  function play() {
+  async function play() {
     const name = username.trim();
-    if (!name) return;
+    if (!name || checking) return;
+    setNameError("");
+    setChecking(true);
+
+    try {
+      const userId = getOrCreateUserId();
+      const res = await fetch(
+        `/api/check-name?username=${encodeURIComponent(name)}&userId=${encodeURIComponent(userId)}`,
+      );
+      const data = await res.json();
+      if (!data.available) {
+        setNameError("This name is already taken. Please choose another.");
+        setChecking(false);
+        return;
+      }
+    } catch {
+      // If check fails, allow play (server-side will still enforce on submit)
+    }
+
+    setChecking(false);
     localStorage.setItem("pretext-dog-username", name);
     router.push(`/play?username=${encodeURIComponent(name)}`);
   }
@@ -263,12 +294,20 @@ export default function StartPage() {
               placeholder="Enter your name..."
               maxLength={30}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setNameError("");
+              }}
               onKeyDown={(e) => e.key === "Enter" && play()}
               autoFocus
             />
-            <button onClick={play} disabled={!username.trim()}>
-              Play
+            {nameError && (
+              <p style={{ color: "#e74c3c", fontSize: "14px", margin: "4px 0 0" }}>
+                {nameError}
+              </p>
+            )}
+            <button onClick={play} disabled={!username.trim() || checking}>
+              {checking ? "Checking..." : "Play"}
             </button>
           </div>
 
